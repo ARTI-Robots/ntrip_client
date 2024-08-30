@@ -117,9 +117,14 @@ class NTRIPRos:
     rospy.on_shutdown(self.stop)
 
     # Connect the client
-    if not self._client.connect():
-      rospy.logerr('Unable to connect to NTRIP server')
-      return 1
+    connection_attempt = 0
+    while not self._client.connect():
+      connection_attempt += 1
+      if connection_attempt > self._client.reconnect_attempt_max:
+        return 1
+      rospy.logerr('Unable to connect to NTRIP server. Will retry after {} seconds... (attempt {} of {})'.format(
+        self._client.reconnect_attempt_wait_seconds, connection_attempt, self._client.reconnect_attempt_max))
+      rospy.sleep(self._client.reconnect_attempt_wait_seconds)
 
     # Setup our subscriber
     self._nmea_sub = rospy.Subscriber('nmea', Sentence, self.subscribe_nmea, queue_size=10)
